@@ -613,7 +613,20 @@ export default function App() {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '24px' }}>
-                <h3 style={{ fontFamily: 'Outfit', marginBottom: '8px', textAlign: 'center' }}>{file.name}</h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                  <button 
+                    className="btn" 
+                    title="Changer de fichier"
+                    style={{ width: '36px', height: '36px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '8px', boxShadow: 'none', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', cursor: 'pointer', flexShrink: 0 }}
+                    onClick={() => {
+                      setFile(null);
+                      setTranscript(null);
+                    }}
+                  >
+                    📂
+                  </button>
+                  <h3 style={{ fontFamily: 'Outfit', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</h3>
+                </div>
                 
                 <audio 
                   ref={audioRef}
@@ -628,45 +641,6 @@ export default function App() {
                 {/* Custom Waveform Seekbar */}
                 {peaksData.length > 0 ? (
                   <div style={{ position: 'relative', margin: '20px 0' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                        Défilement: Glisser | Zoom: Molette (ou boutons)
-                      </span>
-                      <div style={{ display: 'flex', gap: '8px' }}>
-                        <button 
-                          type="button"
-                          className="btn" 
-                          style={{ width: 'auto', padding: '4px 12px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', boxShadow: 'none' }}
-                          onClick={() => {
-                            setZoom(z => Math.max(1, z / 1.5));
-                          }}
-                        >
-                          🔍-
-                        </button>
-                        <button 
-                          type="button"
-                          className="btn" 
-                          style={{ width: 'auto', padding: '4px 12px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', boxShadow: 'none' }}
-                          onClick={() => {
-                            setZoom(1);
-                            setScrollLeft(0);
-                          }}
-                        >
-                          Réinitialiser
-                        </button>
-                        <button 
-                          type="button"
-                          className="btn" 
-                          style={{ width: 'auto', padding: '4px 12px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', boxShadow: 'none' }}
-                          onClick={() => {
-                            setZoom(z => Math.min(80, z * 1.5));
-                          }}
-                        >
-                          🔍+
-                        </button>
-                      </div>
-                    </div>
-                    
                     <canvas
                       ref={canvasRef}
                       style={{
@@ -692,10 +666,16 @@ export default function App() {
                 )}
 
                 {/* Controls Bar */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '20px', gap: '16px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', marginTop: '20px', gap: '16px' }}>
+                  {/* Left Column: Time */}
+                  <div style={{ fontFamily: 'monospace', fontSize: '0.95rem', color: 'var(--text-primary)', justifySelf: 'start' }}>
+                    {formatSRTTime(currentTime).substring(3, 8)} / {formatSRTTime(duration).substring(3, 8)}
+                  </div>
+
+                  {/* Center Column: Play/Pause */}
                   <button 
                     className="btn" 
-                    style={{ width: '48px', height: '48px', borderRadius: '50%', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}
+                    style={{ width: '48px', height: '48px', borderRadius: '50%', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', justifySelf: 'center', cursor: 'pointer' }}
                     onClick={() => {
                       if (audioRef.current) {
                         if (isPlaying) {
@@ -709,20 +689,43 @@ export default function App() {
                     {isPlaying ? '⏸' : '▶'}
                   </button>
 
-                  <div style={{ fontFamily: 'monospace', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                    {formatSRTTime(currentTime).substring(3, 8)} / {formatSRTTime(duration).substring(3, 8)}
+                  {/* Right Column: Waveform Zoom Controls */}
+                  <div style={{ display: 'flex', gap: '8px', justifySelf: 'end' }}>
+                    <button 
+                      type="button"
+                      className="btn" 
+                      title="Dézoomer"
+                      style={{ width: '36px', height: '36px', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', boxShadow: 'none', cursor: 'pointer' }}
+                      onClick={() => {
+                        setZoom(z => Math.max(1, z / 1.5));
+                      }}
+                    >
+                      🔍-
+                    </button>
+                    <button 
+                      type="button"
+                      className="btn" 
+                      title="Réinitialiser"
+                      style={{ width: '36px', height: '36px', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', boxShadow: 'none', cursor: 'pointer' }}
+                      onClick={() => {
+                        setZoom(1);
+                        setScrollLeft(0);
+                      }}
+                    >
+                      🔄
+                    </button>
+                    <button 
+                      type="button"
+                      className="btn" 
+                      title="Zoomer"
+                      style={{ width: '36px', height: '36px', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', boxShadow: 'none', cursor: 'pointer' }}
+                      onClick={() => {
+                        setZoom(z => Math.min(80, z * 1.5));
+                      }}
+                    >
+                      🔍+
+                    </button>
                   </div>
-
-                  <button 
-                    className="btn" 
-                    style={{ width: 'auto', background: 'transparent', border: '1px solid var(--border-color)', boxShadow: 'none', padding: '8px 16px', fontSize: '0.85rem' }}
-                    onClick={() => {
-                      setFile(null);
-                      setTranscript(null);
-                    }}
-                  >
-                    Changer de fichier
-                  </button>
                 </div>
               </div>
 
