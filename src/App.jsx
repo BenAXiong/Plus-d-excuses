@@ -675,7 +675,7 @@ export default function App() {
             </label>
           </div>
 
-          {status !== 'idle' && status !== 'completed' && (
+          {(status !== 'idle' && status !== 'completed') && (
             <div className="progress-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 {/* Row 1: Décodage audio */}
@@ -692,13 +692,15 @@ export default function App() {
                       borderRadius: '50%',
                       animation: 'spin 1s linear infinite'
                     }}></div>
+                  ) : status === 'error' && totalProgress < 2 ? (
+                    <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>✗</span>
                   ) : (
                     <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>✓</span>
                   )}
                 </div>
 
-                {/* Row 2: Téléchargement/Chargement du modèle (visible after phase 1 is done) */}
-                {status !== 'processing-audio' && (
+                {/* Row 2: Téléchargement/Chargement du modèle (visible after phase 1 is done, or if it failed during model load) */}
+                {(status !== 'processing-audio' || (status === 'error' && totalProgress >= 2)) && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.95rem', animation: 'fadeIn 0.3s ease' }}>
                     <span style={{ color: 'var(--text-primary)', fontWeight: status === 'loading-model' ? '600' : '400' }}>
                       2. Chargement du modèle Whisper
@@ -712,6 +714,8 @@ export default function App() {
                         borderRadius: '50%',
                         animation: 'spin 1s linear infinite'
                       }}></div>
+                    ) : status === 'error' && totalProgress < 10 ? (
+                      <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>✗</span>
                     ) : (
                       <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>✓</span>
                     )}
@@ -719,28 +723,35 @@ export default function App() {
                 )}
 
                 {/* Row 3: Transcription (visible after model is loaded) */}
-                {status === 'transcribing' && (
+                {(status === 'transcribing' || (status === 'error' && totalProgress >= 10)) && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', animation: 'fadeIn 0.3s ease' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.95rem' }}>
                       <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>
                         3. Transcription par l'IA
                       </span>
-                      <span style={{ color: 'var(--accent)', fontWeight: '600' }}>
-                        {Math.max(0, Math.min(100, Math.round(((totalProgress - 10) / 85) * 100)))}%
-                      </span>
+                      {status === 'error' ? (
+                        <span style={{ color: 'var(--danger)', fontWeight: 'bold' }}>✗</span>
+                      ) : (
+                        <span style={{ color: 'var(--accent)', fontWeight: '600' }}>
+                          {Math.max(0, Math.min(100, Math.round(((totalProgress - 10) / 85) * 100)))}%
+                        </span>
+                      )}
                     </div>
 
                     <div className="progress-track" style={{ margin: '4px 0 0 0' }}>
                       <div 
                         className="progress-bar" 
-                        style={{ width: `${Math.max(0, Math.min(100, Math.round(((totalProgress - 10) / 85) * 100)))}%` }}
+                        style={{ 
+                          width: `${Math.max(0, Math.min(100, Math.round(((totalProgress - 10) / 85) * 100)))}%`,
+                          background: status === 'error' ? 'var(--danger)' : 'var(--accent)'
+                        }}
                       ></div>
                     </div>
                   </div>
                 )}
               </div>
 
-              {statusMessage && (
+              {statusMessage && status !== 'error' && (
                 <div className="progress-details" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
                   <span>{statusMessage}</span>
                 </div>
