@@ -9,13 +9,14 @@ self.addEventListener('message', async (event) => {
   const { type, audioData, modelName, device } = event.data;
 
   if (type === 'transcribe') {
+    let activeDevice = device;
     try {
       self.postMessage({ status: 'loading-model', message: 'Chargement du modèle...' });
 
       // Load model if it's different or not loaded
-      if (!pipe || currentModel !== modelName || currentDevice !== device) {
+      if (!pipe || currentModel !== modelName || currentDevice !== activeDevice) {
         currentModel = modelName;
-        currentDevice = device;
+        currentDevice = activeDevice;
         
         // Map model selections to HuggingFace ONNX weights
         // Using official onnx-community repository
@@ -24,30 +25,46 @@ self.addEventListener('message', async (event) => {
           modelId = 'onnx-community/whisper-medium-ONNX';
         }
 
-        const pipelineOptions = {
-          device: device, // 'webgpu' or 'wasm'
-          progress_callback: (progress) => {
-            if (progress.status === 'progress') {
-              self.postMessage({
-                status: 'download-progress',
-                file: progress.file,
-                progress: progress.progress,
-                loaded: progress.loaded,
-                total: progress.total
-              });
+        const loadPipeline = async (targetDevice) => {
+          const pipelineOptions = {
+            device: targetDevice, // 'webgpu' or 'wasm'
+            progress_callback: (progress) => {
+              if (progress.status === 'progress') {
+                self.postMessage({
+                  status: 'download-progress',
+                  file: progress.file,
+                  progress: progress.progress,
+                  loaded: progress.loaded,
+                  total: progress.total
+                });
+              }
             }
+          };
+
+          // Use quantization for wasm to avoid WASM OOM (2GB limit)
+          if (targetDevice === 'wasm') {
+            pipelineOptions.dtype = 'q8';
           }
+
+          return await pipeline('automatic-speech-recognition', modelId, pipelineOptions);
         };
 
-        // Use quantization to avoid WASM OOM (2GB limit)
-        if (device === 'wasm') {
-          pipelineOptions.dtype = 'q8';
+        try {
+          pipe = await loadPipeline(activeDevice);
+        } catch (gpuError) {
+          if (activeDevice === 'webgpu') {
+            console.warn("WebGPU initialization or loading failed. Falling back to WASM CPU (q8)...", gpuError);
+            self.postMessage({ status: 'loading-model', message: 'Échec WebGPU. Repli sur CPU (WASM, compressé)...' });
+            activeDevice = 'wasm';
+            currentDevice = 'wasm';
+            pipe = await loadPipeline('wasm');
+          } else {
+            throw gpuError;
+          }
         }
-
-        pipe = await pipeline('automatic-speech-recognition', modelId, pipelineOptions);
       }
 
-      console.log("Worker: Starting transcription. audioData length:", audioData?.length, "model:", modelName, "device:", device);
+      console.log("Worker: Starting transcription. audioData length:", audioData?.length, "model:", modelName, "device:", activeDevice);
       self.postMessage({ status: 'transcribing', message: 'Transcription en cours...' });
 
       // Run transcription
