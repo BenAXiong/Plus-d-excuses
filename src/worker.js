@@ -19,7 +19,10 @@ self.addEventListener('message', async (event) => {
         
         // Map model selections to HuggingFace ONNX weights
         // Using official onnx-community repository
-        const modelId = `onnx-community/whisper-${modelName}`;
+        let modelId = `onnx-community/whisper-${modelName}`;
+        if (modelName === 'medium') {
+          modelId = 'onnx-community/whisper-medium-ONNX';
+        }
 
         pipe = await pipeline('automatic-speech-recognition', modelId, {
           device: device, // 'webgpu' or 'wasm'
