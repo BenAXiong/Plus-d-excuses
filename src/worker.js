@@ -39,10 +39,8 @@ self.addEventListener('message', async (event) => {
           }
         };
 
-        // Use quantization to avoid WASM OOM (2GB limit) and use fp16 for WebGPU speed
-        if (device === 'webgpu') {
-          pipelineOptions.dtype = 'fp16';
-        } else if (device === 'wasm') {
+        // Use quantization to avoid WASM OOM (2GB limit)
+        if (device === 'wasm') {
           pipelineOptions.dtype = 'q8';
         }
 
