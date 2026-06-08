@@ -23,6 +23,11 @@ export default function App() {
   const [currentTime, setCurrentTime] = useState(0);
   const [audioUrl, setAudioUrl] = useState(null);
 
+  // Custom Player States
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [peaks, setPeaks] = useState([]);
+
   // Auto-scroll transcript when active segment changes
   useEffect(() => {
     if (activeRef.current) {
@@ -32,6 +37,52 @@ export default function App() {
       });
     }
   }, [currentTime]);
+
+  // Decode audio and generate waveform peaks when file changes
+  useEffect(() => {
+    if (!file) {
+      setPeaks([]);
+      setDuration(0);
+      return;
+    }
+    
+    const loadAudioWaveform = async () => {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const arrayBuffer = await file.arrayBuffer();
+      try {
+        const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+        setDuration(audioBuffer.duration);
+        
+        // Generate peaks for visualizer (e.g. 120 bars)
+        const channelData = audioBuffer.getChannelData(0);
+        const width = 120;
+        const step = Math.ceil(channelData.length / width);
+        const newPeaks = [];
+        
+        for (let i = 0; i < width; i++) {
+          let min = 1.0;
+          let max = -1.0;
+          for (let j = 0; j < step; j++) {
+            const index = i * step + j;
+            if (index >= channelData.length) break;
+            const datum = channelData[index];
+            if (datum < min) min = datum;
+            if (datum > max) max = datum;
+          }
+          newPeaks.push(max - min);
+        }
+        
+        // Normalize peaks
+        const maxPeak = Math.max(...newPeaks);
+        const normalizedPeaks = newPeaks.map(p => maxPeak > 0 ? p / maxPeak : 0);
+        setPeaks(normalizedPeaks);
+      } catch (err) {
+        console.error("Failed to generate waveform:", err);
+      }
+    };
+    
+    loadAudioWaveform();
+  }, [file]);
 
   // Set audio URL when file changes
   useEffect(() => {
@@ -350,27 +401,80 @@ export default function App() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
-                <h3 style={{ fontFamily: 'Outfit', marginBottom: '8px' }}>{file.name}</h3>
+              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '24px' }}>
+                <h3 style={{ fontFamily: 'Outfit', marginBottom: '8px', textAlign: 'center' }}>{file.name}</h3>
+                
                 <audio 
                   ref={audioRef}
                   src={audioUrl} 
-                  controls 
-                  style={{ width: '100%', marginTop: '16px' }}
                   onTimeUpdate={(e) => setCurrentTime(e.target.currentTime)}
+                  onPlay={() => setIsPlaying(true)}
+                  onPause={() => setIsPlaying(false)}
+                  onEnded={() => setIsPlaying(false)}
+                  onLoadedMetadata={(e) => setDuration(e.target.duration)}
                 />
-                
-                {/* Reset button to clear loaded audio */}
-                <button 
-                  className="btn" 
-                  style={{ width: 'auto', background: 'transparent', border: '1px solid var(--border-color)', boxShadow: 'none', padding: '6px 12px', fontSize: '0.8rem', marginTop: '12px' }}
-                  onClick={() => {
-                    setFile(null);
-                    setTranscript(null);
-                  }}
-                >
-                  Changer de fichier audio
-                </button>
+
+                {/* Custom Waveform Seekbar */}
+                {peaks.length > 0 ? (
+                  <div className="waveform-container">
+                    {peaks.map((peak, idx) => {
+                      const barTime = (idx / peaks.length) * duration;
+                      const isPlayed = currentTime >= barTime;
+                      return (
+                        <div 
+                          key={idx}
+                          className={`waveform-bar ${isPlayed ? 'played' : ''}`}
+                          style={{
+                            height: `${Math.max(8, peak * 90)}%`,
+                          }}
+                          onClick={() => {
+                            if (audioRef.current) {
+                              audioRef.current.currentTime = barTime;
+                            }
+                          }}
+                        />
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                    Chargement de la forme d'onde...
+                  </div>
+                )}
+
+                {/* Controls Bar */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '20px', gap: '16px' }}>
+                  <button 
+                    className="btn" 
+                    style={{ width: '48px', height: '48px', borderRadius: '50%', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}
+                    onClick={() => {
+                      if (audioRef.current) {
+                        if (isPlaying) {
+                          audioRef.current.pause();
+                        } else {
+                          audioRef.current.play();
+                        }
+                      }
+                    }}
+                  >
+                    {isPlaying ? '⏸' : '▶'}
+                  </button>
+
+                  <div style={{ fontFamily: 'monospace', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                    {formatSRTTime(currentTime).substring(3, 8)} / {formatSRTTime(duration).substring(3, 8)}
+                  </div>
+
+                  <button 
+                    className="btn" 
+                    style={{ width: 'auto', background: 'transparent', border: '1px solid var(--border-color)', boxShadow: 'none', padding: '8px 16px', fontSize: '0.85rem' }}
+                    onClick={() => {
+                      setFile(null);
+                      setTranscript(null);
+                    }}
+                  >
+                    Changer de fichier
+                  </button>
+                </div>
               </div>
 
               {transcript ? (

@@ -442,6 +442,37 @@ select:focus {
   margin-bottom: 12px;
 }
 
+/* Custom Waveform Visualizer styling */
+.waveform-container {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  height: 80px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 0 16px;
+  margin: 20px 0;
+}
+
+.waveform-bar {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  transition: background 0.15s ease, transform 0.1s ease;
+  min-height: 4px;
+  cursor: pointer;
+}
+
+.waveform-bar:hover {
+  background: rgba(99, 102, 241, 0.5);
+  transform: scaleY(1.1);
+}
+
+.waveform-bar.played {
+  background: linear-gradient(to top, var(--accent), #a855f7);
+}
+
 /* Responsive navigation visibility */
 @media (max-width: 768px) {
   .nav-desktop {
