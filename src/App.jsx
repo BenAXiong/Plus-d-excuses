@@ -7,6 +7,7 @@ export default function App() {
   const [hasWebGPU, setHasWebGPU] = useState(false);
   
   const [file, setFile] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [status, setStatus] = useState('idle'); // idle, processing-audio, loading-model, transcribing, completed, error
   const [statusMessage, setStatusMessage] = useState('');
   
@@ -403,6 +404,26 @@ export default function App() {
     }
   };
 
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const selectedFile = e.dataTransfer.files[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setStatus('idle');
+      setTranscript(null);
+    }
+  };
+
   const decodeAudio = async (file) => {
     setStatus('processing-audio');
     setStatusMessage('Décodage de l\'audio...');
@@ -546,7 +567,12 @@ export default function App() {
             </div>
           </div>
 
-          <div className="dropzone">
+          <div 
+            className={`dropzone ${isDragging ? 'active' : ''}`}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+          >
             <input 
               type="file" 
               accept="audio/*" 
@@ -636,7 +662,13 @@ export default function App() {
               <h2>Aucun fichier audio chargé</h2>
               <p>Sélectionnez un fichier audio pour commencer l'écoute.</p>
               
-              <div className="dropzone" style={{ width: '100%', maxWidth: '400px', margin: '20px auto 0' }}>
+              <div 
+                className={`dropzone ${isDragging ? 'active' : ''}`}
+                style={{ width: '100%', maxWidth: '400px', margin: '20px auto 0' }}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+              >
                 <input 
                   type="file" 
                   accept="audio/*" 
