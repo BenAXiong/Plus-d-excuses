@@ -61,7 +61,7 @@ export default function App() {
         setDuration(audioBuffer.duration);
         
         const channelData = audioBuffer.getChannelData(0);
-        const points = 4000;
+        const points = 24000;
         const step = Math.ceil(channelData.length / points);
         const newPeaksData = [];
         
@@ -132,50 +132,90 @@ export default function App() {
     
     const visiblePoints = Math.round(peaksData.length / zoom);
     
-    // Draw mirrored audacity-style waveform shape
-    ctx.lineWidth = 1.5;
-    for (let x = 0; x < w; x++) {
-      const dataIdx = scrollLeft + Math.round((x / w) * visiblePoints);
-      if (dataIdx >= peaksData.length) break;
+    // Helper to draw a continuous filled waveform segment with linear interpolation
+    const drawWaveformSegment = (startX, endX, fillStyle) => {
+      if (startX >= endX) return;
+      ctx.beginPath();
       
-      const peak = peaksData[dataIdx];
-      const startY = midY + (peak.min * midY * 0.9);
-      const endY = midY + (peak.max * midY * 0.9);
-      
-      const pointTime = (dataIdx / peaksData.length) * duration;
-      const isPlayed = currentTime >= pointTime;
-      
-      if (isPlayed) {
-        ctx.strokeStyle = '#6366f1'; 
-      } else {
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+      // Top outline (left to right)
+      for (let x = startX; x <= endX; x++) {
+        const dataIdx = scrollLeft + (x / w) * visiblePoints;
+        const baseIdx = Math.floor(dataIdx);
+        const frac = dataIdx - baseIdx;
+        
+        let maxVal = 0;
+        if (baseIdx < peaksData.length) {
+          const p1 = peaksData[baseIdx].max;
+          const p2 = baseIdx + 1 < peaksData.length ? peaksData[baseIdx + 1].max : p1;
+          maxVal = p1 + (p2 - p1) * frac;
+        }
+        
+        const y = midY + (maxVal * midY * 0.9);
+        if (x === startX) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
       }
       
-      ctx.beginPath();
-      ctx.moveTo(x, startY);
-      ctx.lineTo(x, endY);
-      ctx.stroke();
-    }
+      // Bottom outline (right to left)
+      for (let x = endX; x >= startX; x--) {
+        const dataIdx = scrollLeft + (x / w) * visiblePoints;
+        const baseIdx = Math.floor(dataIdx);
+        const frac = dataIdx - baseIdx;
+        
+        let minVal = 0;
+        if (baseIdx < peaksData.length) {
+          const p1 = peaksData[baseIdx].min;
+          const p2 = baseIdx + 1 < peaksData.length ? peaksData[baseIdx + 1].min : p1;
+          minVal = p1 + (p2 - p1) * frac;
+        }
+        
+        const y = midY + (minVal * midY * 0.9);
+        ctx.lineTo(x, y);
+      }
+      
+      ctx.closePath();
+      ctx.fillStyle = fillStyle;
+      ctx.fill();
+    };
+
+    // Calculate playhead position in pixels
+    const currentPointIdx = (currentTime / duration) * peaksData.length;
+    const playheadX = ((currentPointIdx - scrollLeft) / visiblePoints) * w;
+    const splitX = Math.round(Math.max(0, Math.min(w, playheadX)));
+
+    // Create custom linear gradients
+    const playedGradient = ctx.createLinearGradient(0, 0, 0, h);
+    playedGradient.addColorStop(0, '#a5b4fc'); // Indigo-300
+    playedGradient.addColorStop(0.5, '#6366f1'); // Indigo-500
+    playedGradient.addColorStop(1, '#4338ca'); // Indigo-700
+
+    const unplayedGradient = ctx.createLinearGradient(0, 0, 0, h);
+    unplayedGradient.addColorStop(0, 'rgba(255, 255, 255, 0.22)');
+    unplayedGradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.14)');
+    unplayedGradient.addColorStop(1, 'rgba(255, 255, 255, 0.08)');
+
+    // Render both active and inactive parts of the waveform
+    drawWaveformSegment(0, splitX, playedGradient);
+    drawWaveformSegment(splitX, w, unplayedGradient);
     
     // Draw playhead vertical line
-    const currentPointIdx = (currentTime / duration) * peaksData.length;
     const visibleEnd = scrollLeft + visiblePoints;
-    
     if (currentPointIdx >= scrollLeft && currentPointIdx <= visibleEnd) {
-      const playheadX = ((currentPointIdx - scrollLeft) / visiblePoints) * w;
       ctx.strokeStyle = '#f43f5e'; // Vibrant pink/red playhead
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.moveTo(playheadX, 0);
-      ctx.lineTo(playheadX, h);
+      ctx.moveTo(splitX, 0);
+      ctx.lineTo(splitX, h);
       ctx.stroke();
       
       // Draw a small playhead triangle on top
       ctx.fillStyle = '#f43f5e';
       ctx.beginPath();
-      ctx.moveTo(playheadX - 6, 0);
-      ctx.lineTo(playheadX + 6, 0);
-      ctx.lineTo(playheadX, 8);
+      ctx.moveTo(splitX - 6, 0);
+      ctx.lineTo(splitX + 6, 0);
+      ctx.lineTo(splitX, 8);
       ctx.closePath();
       ctx.fill();
     }
