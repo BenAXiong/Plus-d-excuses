@@ -816,13 +816,51 @@ export default function App() {
             </div>
           )}
 
-          <button 
-            className="btn" 
-            onClick={startTranscription} 
-            disabled={!file || (status !== 'idle' && status !== 'completed' && status !== 'error')}
-          >
-            Démarrer la transcription
-          </button>
+          {/* Helper function to get hardware info and estimate transcription duration */}
+          {(() => {
+            const getEstimateText = () => {
+              if (!file) return '';
+              
+              // We'll estimate based on model scale speeds
+              // WebGPU factors:
+              // - tiny: ~1.5% of audio duration
+              // - small: ~3%
+              // - medium: ~8%
+              // - large: ~15%
+              // CPU (WASM) factors:
+              // - tiny: ~25% of audio duration
+              // - small: ~45%
+              // - medium: ~70%
+              // - large: ~110%
+              
+              // Guess duration from file size as fallback (assuming typical 128kbps mp3: ~1MB = 1 minute)
+              const estAudioDurSeconds = (file.size / (128 * 1024 / 8)) || 300;
+              
+              const factor = device === 'webgpu' 
+                ? (model === 'tiny' ? 0.015 : model === 'small' ? 0.03 : model === 'medium' ? 0.08 : 0.15)
+                : (model === 'tiny' ? 0.25 : model === 'small' ? 0.45 : model === 'medium' ? 0.70 : 1.10);
+                
+              const estTimeSeconds = estAudioDurSeconds * factor;
+              const mins = Math.max(1, Math.round(estTimeSeconds / 60));
+              
+              // Check hardware specs
+              const cores = navigator.hardwareConcurrency ? `${navigator.hardwareConcurrency} cœurs CPU` : '';
+              const gpuType = device === 'webgpu' ? 'GPU' : 'CPU';
+              const hardwareDetails = cores ? ` (${gpuType}, ${cores})` : ` (${gpuType})`;
+              
+              return ` (estimation : ~${mins} min${hardwareDetails})`;
+            };
+
+            return (
+              <button 
+                className="btn" 
+                onClick={startTranscription} 
+                disabled={!file || (status !== 'idle' && status !== 'completed' && status !== 'error')}
+              >
+                Démarrer la transcription{getEstimateText()}
+              </button>
+            );
+          })()}
 
           {status === 'completed' && transcript && (
             <div className="transcript-section">
