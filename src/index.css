@@ -343,3 +343,115 @@ select:focus {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
 }
+
+/* Tab Navigation (Desktop Top Bar) */
+.nav-desktop {
+  display: flex;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 20px;
+  padding: 4px;
+  margin-bottom: 32px;
+}
+
+.nav-desktop button {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 8px 24px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-radius: 16px;
+  transition: var(--transition);
+}
+
+.nav-desktop button:hover {
+  color: var(--text-primary);
+}
+
+.nav-desktop button.active {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 4px 12px var(--accent-glow);
+}
+
+/* Tab Navigation (Mobile Bottom Bar) */
+.nav-mobile {
+  display: none;
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 48px);
+  max-width: 400px;
+  background: rgba(18, 18, 24, 0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-color);
+  border-radius: 30px;
+  padding: 8px;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  justify-content: space-around;
+}
+
+.nav-mobile button {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 8px 16px;
+  border-radius: 20px;
+  transition: var(--transition);
+}
+
+.nav-mobile button.active {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.nav-mobile-icon {
+  font-size: 1.2rem;
+}
+
+/* Placeholders & Multi-view adjustments */
+.placeholder-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+  text-align: center;
+  color: var(--text-secondary);
+  animation: fadeIn 0.5s ease-out;
+}
+
+.placeholder-view h2 {
+  font-family: 'Outfit', sans-serif;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+/* Responsive navigation visibility */
+@media (max-width: 768px) {
+  .nav-desktop {
+    display: none;
+  }
+  .nav-mobile {
+    display: flex;
+  }
+  .app-container {
+    padding: 30px 20px 100px 20px; /* Leave space for bottom nav */
+  }
+}
+
