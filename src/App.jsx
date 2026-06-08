@@ -410,7 +410,7 @@ export default function App() {
                   
                   <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
                     <button className="btn" style={{ width: 'auto' }} onClick={() => setActiveTab('transcription')}>
-                      Transcrire avec Whisper
+                      Transcrire avec l'IA
                     </button>
                     
                     <input 
@@ -421,7 +421,7 @@ export default function App() {
                       onChange={handleSRTUpload}
                     />
                     <label htmlFor="srt-picker" className="btn" style={{ width: 'auto', display: 'inline-block', lineHeight: 'normal', cursor: 'pointer' }}>
-                      Importer un fichier .SRT
+                      Importer un fichier .srt
                     </label>
                   </div>
                 </div>
