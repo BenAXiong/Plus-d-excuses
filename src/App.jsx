@@ -405,8 +405,7 @@ export default function App() {
                 </div>
               ) : (
                 <div className="placeholder-view" style={{ padding: '20px', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
-                  <h2>Aucun sous-titre associé</h2>
-                  <p style={{ marginBottom: '16px' }}>Générez une transcription dans le premier onglet, ou chargez directement un fichier de sous-titres `.srt` existant pour ce fichier.</p>
+                  <h2 style={{ marginBottom: '24px' }}>Aucun sous-titre dans la librairie</h2>
                   
                   <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
                     <button className="btn" style={{ width: 'auto' }} onClick={() => setActiveTab('transcription')}>
