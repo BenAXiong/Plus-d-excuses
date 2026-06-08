@@ -26,7 +26,12 @@ export default function App() {
   // Custom Player States
   const [isPlaying, setIsPlaying] = useState(false);
   const [duration, setDuration] = useState(0);
-  const [peaks, setPeaks] = useState([]);
+  const [peaksData, setPeaksData] = useState([]);
+  const [zoom, setZoom] = useState(1);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  const canvasRef = useRef(null);
+  const dragRef = useRef({ isDragging: false, startX: 0, startScrollLeft: 0, hasDragged: false });
 
   // Auto-scroll transcript when active segment changes
   useEffect(() => {
@@ -38,11 +43,13 @@ export default function App() {
     }
   }, [currentTime]);
 
-  // Decode audio and generate waveform peaks when file changes
+  // Decode audio and generate high-density waveform peaks when file changes
   useEffect(() => {
     if (!file) {
-      setPeaks([]);
+      setPeaksData([]);
       setDuration(0);
+      setZoom(1);
+      setScrollLeft(0);
       return;
     }
     
@@ -53,13 +60,12 @@ export default function App() {
         const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
         setDuration(audioBuffer.duration);
         
-        // Generate peaks for visualizer (e.g. 120 bars)
         const channelData = audioBuffer.getChannelData(0);
-        const width = 120;
-        const step = Math.ceil(channelData.length / width);
-        const newPeaks = [];
+        const points = 4000;
+        const step = Math.ceil(channelData.length / points);
+        const newPeaksData = [];
         
-        for (let i = 0; i < width; i++) {
+        for (let i = 0; i < points; i++) {
           let min = 1.0;
           let max = -1.0;
           for (let j = 0; j < step; j++) {
@@ -69,13 +75,19 @@ export default function App() {
             if (datum < min) min = datum;
             if (datum > max) max = datum;
           }
-          newPeaks.push(max - min);
+          newPeaksData.push({ min, max });
         }
         
-        // Normalize peaks
-        const maxPeak = Math.max(...newPeaks);
-        const normalizedPeaks = newPeaks.map(p => maxPeak > 0 ? p / maxPeak : 0);
-        setPeaks(normalizedPeaks);
+        // Find max amplitude to normalize
+        const maxVal = Math.max(...newPeaksData.map(p => Math.max(Math.abs(p.min), Math.abs(p.max))));
+        const normalized = newPeaksData.map(p => ({
+          min: maxVal > 0 ? p.min / maxVal : 0,
+          max: maxVal > 0 ? p.max / maxVal : 0
+        }));
+        
+        setPeaksData(normalized);
+        setZoom(1);
+        setScrollLeft(0);
       } catch (err) {
         console.error("Failed to generate waveform:", err);
       }
@@ -83,6 +95,202 @@ export default function App() {
     
     loadAudioWaveform();
   }, [file]);
+
+  // Redraw canvas waveform
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || peaksData.length === 0) return;
+    const ctx = canvas.getContext('2d');
+    
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    
+    const w = rect.width;
+    const h = rect.height;
+    const midY = h / 2;
+    
+    ctx.clearRect(0, 0, w, h);
+    
+    // Draw background grid lines (Audacity style)
+    ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, midY);
+    ctx.lineTo(w, midY);
+    ctx.stroke();
+    
+    for (let i = 1; i < 10; i++) {
+      const xGrid = (i / 10) * w;
+      ctx.beginPath();
+      ctx.moveTo(xGrid, 0);
+      ctx.lineTo(xGrid, h);
+      ctx.stroke();
+    }
+    
+    const visiblePoints = Math.round(peaksData.length / zoom);
+    
+    // Draw mirrored audacity-style waveform shape
+    ctx.lineWidth = 1.5;
+    for (let x = 0; x < w; x++) {
+      const dataIdx = scrollLeft + Math.round((x / w) * visiblePoints);
+      if (dataIdx >= peaksData.length) break;
+      
+      const peak = peaksData[dataIdx];
+      const startY = midY + (peak.min * midY * 0.9);
+      const endY = midY + (peak.max * midY * 0.9);
+      
+      const pointTime = (dataIdx / peaksData.length) * duration;
+      const isPlayed = currentTime >= pointTime;
+      
+      if (isPlayed) {
+        ctx.strokeStyle = '#6366f1'; 
+      } else {
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+      }
+      
+      ctx.beginPath();
+      ctx.moveTo(x, startY);
+      ctx.lineTo(x, endY);
+      ctx.stroke();
+    }
+    
+    // Draw playhead vertical line
+    const currentPointIdx = (currentTime / duration) * peaksData.length;
+    const visibleEnd = scrollLeft + visiblePoints;
+    
+    if (currentPointIdx >= scrollLeft && currentPointIdx <= visibleEnd) {
+      const playheadX = ((currentPointIdx - scrollLeft) / visiblePoints) * w;
+      ctx.strokeStyle = '#f43f5e'; // Vibrant pink/red playhead
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(playheadX, 0);
+      ctx.lineTo(playheadX, h);
+      ctx.stroke();
+      
+      // Draw a small playhead triangle on top
+      ctx.fillStyle = '#f43f5e';
+      ctx.beginPath();
+      ctx.moveTo(playheadX - 6, 0);
+      ctx.lineTo(playheadX + 6, 0);
+      ctx.lineTo(playheadX, 8);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }, [peaksData, currentTime, zoom, scrollLeft, duration]);
+
+  // Keep playhead visible inside the zoomed viewport
+  useEffect(() => {
+    if (peaksData.length === 0) return;
+    const currentPointIdx = (currentTime / duration) * peaksData.length;
+    const visiblePoints = Math.round(peaksData.length / zoom);
+    const visibleEnd = scrollLeft + visiblePoints;
+    
+    if (currentPointIdx > visibleEnd - (visiblePoints * 0.15) || currentPointIdx < scrollLeft) {
+      const targetScrollLeft = Math.max(
+        0,
+        Math.min(
+          peaksData.length - visiblePoints,
+          Math.round(currentPointIdx - visiblePoints * 0.2)
+        )
+      );
+      setScrollLeft(targetScrollLeft);
+    }
+  }, [currentTime, duration, zoom]);
+
+  // Attach non-passive wheel handler for zooming
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    
+    const onWheel = (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const w = rect.width;
+      
+      const zoomFactor = e.deltaY < 0 ? 1.3 : 0.77;
+      const nextZoom = Math.max(1, Math.min(80, zoom * zoomFactor));
+      
+      const oldVisiblePoints = peaksData.length / zoom;
+      const newVisiblePoints = peaksData.length / nextZoom;
+      const mousePercentage = x / w;
+      const pointAtMouse = scrollLeft + mousePercentage * oldVisiblePoints;
+      
+      const nextScrollLeft = Math.max(
+        0,
+        Math.min(
+          peaksData.length - newVisiblePoints,
+          Math.round(pointAtMouse - mousePercentage * newVisiblePoints)
+        )
+      );
+      
+      setZoom(nextZoom);
+      setScrollLeft(nextScrollLeft);
+    };
+    
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => {
+      canvas.removeEventListener('wheel', onWheel);
+    };
+  }, [zoom, scrollLeft, peaksData]);
+
+  const handleCanvasClick = (e) => {
+    if (dragRef.current.hasDragged) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const w = rect.width;
+    
+    const visiblePoints = Math.round(peaksData.length / zoom);
+    const dataIdx = scrollLeft + (x / w) * visiblePoints;
+    const clickTime = (dataIdx / peaksData.length) * duration;
+    
+    if (audioRef.current) {
+      audioRef.current.currentTime = Math.max(0, Math.min(duration, clickTime));
+    }
+  };
+
+  const handleMouseDown = (e) => {
+    dragRef.current = {
+      isDragging: true,
+      startX: e.clientX,
+      startScrollLeft: scrollLeft,
+      hasDragged: false
+    };
+  };
+
+  const handleMouseMove = (e) => {
+    if (!dragRef.current.isDragging) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const w = rect.width;
+    
+    const dx = e.clientX - dragRef.current.startX;
+    if (Math.abs(dx) > 3) {
+      dragRef.current.hasDragged = true;
+    }
+    
+    const visiblePoints = Math.round(peaksData.length / zoom);
+    const pointDelta = -(dx / w) * visiblePoints;
+    
+    const newScrollLeft = Math.max(
+      0,
+      Math.min(
+        peaksData.length - visiblePoints,
+        Math.round(dragRef.current.startScrollLeft + pointDelta)
+      )
+    );
+    setScrollLeft(newScrollLeft);
+  };
+
+  const handleMouseUpOrLeave = () => {
+    dragRef.current.isDragging = false;
+  };
 
   // Set audio URL when file changes
   useEffect(() => {
@@ -274,6 +482,9 @@ export default function App() {
           <div className="controls-grid" style={{ gridTemplateColumns: '1fr' }}>
             <div className="control-group">
               <label>Choisis un modèle</label>
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px', marginBottom: '16px', lineHeight: '1.4' }}>
+                Plus le modèle est gros, plus il est précis, mais plus il est lent. Si ton appareil est puissant, tu peux essayer Medium, sinon commence par Small.
+              </p>
               <div className="segmented-control">
                 {[
                   { id: 'tiny', label: 'Tiny' },
@@ -415,29 +626,67 @@ export default function App() {
                 />
 
                 {/* Custom Waveform Seekbar */}
-                {peaks.length > 0 ? (
-                  <div className="waveform-container">
-                    {peaks.map((peak, idx) => {
-                      const barTime = (idx / peaks.length) * duration;
-                      const isPlayed = currentTime >= barTime;
-                      return (
-                        <div 
-                          key={idx}
-                          className={`waveform-bar ${isPlayed ? 'played' : ''}`}
-                          style={{
-                            height: `${Math.max(8, peak * 90)}%`,
-                          }}
+                {peaksData.length > 0 ? (
+                  <div style={{ position: 'relative', margin: '20px 0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px', flexWrap: 'wrap', gap: '8px' }}>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Défilement: Glisser | Zoom: Molette (ou boutons)
+                      </span>
+                      <div style={{ display: 'flex', gap: '8px' }}>
+                        <button 
+                          type="button"
+                          className="btn" 
+                          style={{ width: 'auto', padding: '4px 12px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', boxShadow: 'none' }}
                           onClick={() => {
-                            if (audioRef.current) {
-                              audioRef.current.currentTime = barTime;
-                            }
+                            setZoom(z => Math.max(1, z / 1.5));
                           }}
-                        />
-                      );
-                    })}
+                        >
+                          🔍-
+                        </button>
+                        <button 
+                          type="button"
+                          className="btn" 
+                          style={{ width: 'auto', padding: '4px 12px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', boxShadow: 'none' }}
+                          onClick={() => {
+                            setZoom(1);
+                            setScrollLeft(0);
+                          }}
+                        >
+                          Réinitialiser
+                        </button>
+                        <button 
+                          type="button"
+                          className="btn" 
+                          style={{ width: 'auto', padding: '4px 12px', fontSize: '0.8rem', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', boxShadow: 'none' }}
+                          onClick={() => {
+                            setZoom(z => Math.min(80, z * 1.5));
+                          }}
+                        >
+                          🔍+
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <canvas
+                      ref={canvasRef}
+                      style={{
+                        width: '100%',
+                        height: '120px',
+                        background: 'rgba(0, 0, 0, 0.25)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '8px',
+                        cursor: 'ew-resize',
+                        display: 'block'
+                      }}
+                      onMouseDown={handleMouseDown}
+                      onMouseMove={handleMouseMove}
+                      onMouseUp={handleMouseUpOrLeave}
+                      onMouseLeave={handleMouseUpOrLeave}
+                      onClick={handleCanvasClick}
+                    />
                   </div>
                 ) : (
-                  <div style={{ height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                  <div style={{ height: '120px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)', fontSize: '0.9rem', background: 'rgba(0, 0, 0, 0.25)', border: '1px solid var(--border-color)', borderRadius: '8px', margin: '20px 0' }}>
                     Chargement de la forme d'onde...
                   </div>
                 )}
