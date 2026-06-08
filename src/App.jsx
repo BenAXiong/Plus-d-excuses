@@ -895,30 +895,49 @@ export default function App() {
               <h2>Aucun fichier audio chargé</h2>
               <p>Sélectionnez un fichier audio pour commencer l'écoute.</p>
               
-              <div 
-                className={`dropzone ${isDragging ? 'active' : ''}`}
-                style={{ width: '100%', maxWidth: '400px', margin: '20px auto 0' }}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-              >
-                <input 
-                  type="file" 
-                  accept="audio/*" 
-                  id="player-audio-picker" 
-                  style={{ display: 'none' }} 
-                  onChange={handleFileChange}
-                />
-                <label htmlFor="player-audio-picker" style={{ width: '100%', cursor: 'pointer' }}>
-                  <div className="dropzone-icon">🎵</div>
-                  <p style={{ color: 'var(--text-primary)', fontWeight: '500' }}>Charger un fichier audio</p>
-                </label>
+              <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', width: '100%', maxWidth: '400px', margin: '20px auto 0' }}>
+                <div 
+                  className={`dropzone ${isDragging ? 'active' : ''}`}
+                  style={{ flex: 1, margin: 0 }}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <input 
+                    type="file" 
+                    accept="audio/*" 
+                    id="player-audio-picker" 
+                    style={{ display: 'none' }} 
+                    onChange={handleFileChange}
+                  />
+                  <label htmlFor="player-audio-picker" style={{ width: '100%', cursor: 'pointer' }}>
+                    <div className="dropzone-icon" style={{ fontSize: '1.2rem', marginBottom: '4px' }}>🎵</div>
+                    <p style={{ color: 'var(--text-primary)', fontWeight: '500', fontSize: '0.85rem' }}>Fichier local</p>
+                  </label>
+                </div>
+                
+                <a
+                  href="https://drive.google.com/drive/folders/16LdJquxQFACf90JuD0YPxYM1yRaWALoL"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="dropzone"
+                  style={{ flex: 1, margin: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textDecoration: 'none' }}
+                >
+                  <div style={{ marginBottom: '4px' }}>
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                      <path fill="#FFC107" d="M8 17l4-7h8l-4 7z" />
+                      <path fill="#009688" d="M12 10L8 3h8l4 7z" />
+                      <path fill="#3F51B5" d="M4 17l4-7h4l-4 7z" />
+                    </svg>
+                  </div>
+                  <p style={{ color: 'var(--text-primary)', fontWeight: '500', fontSize: '0.85rem' }}>Google Drive</p>
+                </a>
               </div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
                   <button 
                     className="btn" 
                     title="Changer de fichier"
@@ -930,6 +949,20 @@ export default function App() {
                   >
                     📂
                   </button>
+                  <a
+                    href="https://drive.google.com/drive/folders/16LdJquxQFACf90JuD0YPxYM1yRaWALoL"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="btn"
+                    title="Ouvrir Google Drive"
+                    style={{ width: '36px', height: '36px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '8px', boxShadow: 'none', padding: '0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', cursor: 'pointer', flexShrink: 0, textDecoration: 'none' }}
+                  >
+                    <svg viewBox="0 0 24 24" width="20" height="20" style={{ display: 'block' }}>
+                      <path fill="#FFC107" d="M8 17l4-7h8l-4 7z" />
+                      <path fill="#009688" d="M12 10L8 3h8l4 7z" />
+                      <path fill="#3F51B5" d="M4 17l4-7h4l-4 7z" />
+                    </svg>
+                  </a>
                   <h3 style={{ fontFamily: 'Outfit', margin: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</h3>
                 </div>
                 
