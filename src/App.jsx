@@ -365,7 +365,7 @@ export default function App() {
     );
 
     workerRef.current.addEventListener('message', (event) => {
-      const { status: wsStatus, message, file: filename, progress, loaded, total, transcript: output, duration, error, chunksProcessed } = event.data;
+      const { status: wsStatus, message, file: filename, progress, loaded, total, transcript: output, duration, error, chunksProcessed, fallbackTriggered, activeDevice } = event.data;
 
       // Helper to stop fake progress interval
       const clearTranscribingInterval = () => {
@@ -374,6 +374,10 @@ export default function App() {
           transcribingIntervalRef.current = null;
         }
       };
+
+      if (fallbackTriggered || (activeDevice && activeDevice !== device)) {
+        setDevice(activeDevice);
+      }
 
       if (wsStatus === 'loading-model') {
         setStatus('loading-model');
@@ -388,7 +392,8 @@ export default function App() {
           
           // Estimate total transcription time in seconds based on device and file duration
           const audioDur = audioDurationRef.current || 60;
-          const estTime = device === 'webgpu' 
+          const currentRuntimeDevice = activeDevice || device;
+          const estTime = currentRuntimeDevice === 'webgpu' 
             ? Math.max(5, audioDur * 0.08)  // WebGPU: ~8% of audio duration (e.g. 15s for a 3min file)
             : Math.max(20, audioDur * 0.7); // WASM (CPU): ~70% of audio duration (e.g. 126s for a 3min file)
           
