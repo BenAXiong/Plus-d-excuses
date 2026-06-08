@@ -112,6 +112,45 @@ select:focus {
   box-shadow: 0 0 0 3px var(--accent-glow);
 }
 
+/* Segmented Control / Horizontal Toggle */
+.segmented-control {
+  display: flex;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  padding: 4px;
+  width: 100%;
+}
+
+.segmented-control button {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 10px;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: 7px;
+  transition: var(--transition);
+}
+
+.segmented-control button:hover:not(:disabled) {
+  color: var(--text-primary);
+}
+
+.segmented-control button.active {
+  background: var(--accent);
+  color: white;
+  box-shadow: 0 2px 8px var(--accent-glow);
+}
+
+.segmented-control button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
 /* Drag and Drop Zone */
 .dropzone {
   border: 2px dashed var(--border-color);

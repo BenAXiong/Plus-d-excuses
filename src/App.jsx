@@ -156,12 +156,24 @@ export default function App() {
       <div className="controls-grid" style={{ gridTemplateColumns: '1fr' }}>
         <div className="control-group">
           <label>Choisis un modèle</label>
-          <select value={model} onChange={(e) => setModel(e.target.value)} disabled={status !== 'idle' && status !== 'completed' && status !== 'error'}>
-            <option value="tiny">Tiny (Plus rapide, moins précis)</option>
-            <option value="small">Small (Recommandé)</option>
-            <option value="medium">Medium (Lourd, précis)</option>
-            <option value="large-v3-turbo">Large V3 Turbo (Très lourd, haute précision)</option>
-          </select>
+          <div className="segmented-control">
+            {[
+              { id: 'tiny', label: 'Tiny' },
+              { id: 'small', label: 'Small' },
+              { id: 'medium', label: 'Medium' },
+              { id: 'large-v3-turbo', label: 'Large' },
+            ].map((m) => (
+              <button
+                key={m.id}
+                type="button"
+                className={model === m.id ? 'active' : ''}
+                onClick={() => setModel(m.id)}
+                disabled={status !== 'idle' && status !== 'completed' && status !== 'error'}
+              >
+                {m.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
