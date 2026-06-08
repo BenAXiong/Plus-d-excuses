@@ -146,13 +146,12 @@ export default function App() {
   return (
     <div className="app-container">
       <header>
-        <h1>Plus d'excuses</h1>
-        <p className="subtitle">Transcription audio locale privée (CPU / GPU)</p>
+        <h1 style={{ marginBottom: '24px' }}>Plus d'excuses</h1>
       </header>
 
       <div className="controls-grid">
         <div className="control-group">
-          <label>Modèle Whisper</label>
+          <label>Choisis un modèle</label>
           <select value={model} onChange={(e) => setModel(e.target.value)} disabled={status !== 'idle' && status !== 'completed' && status !== 'error'}>
             <option value="tiny">Tiny (Plus rapide, moins précis)</option>
             <option value="small">Small (Recommandé)</option>
@@ -162,7 +161,7 @@ export default function App() {
         </div>
 
         <div className="control-group">
-          <label>Accélération Matérielle</label>
+          <label>Choisis le processeur</label>
           <select value={device} onChange={(e) => setDevice(e.target.value)} disabled={status !== 'idle' && status !== 'completed' && status !== 'error'}>
             {hasWebGPU && <option value="webgpu">GPU (WebGPU — Ultra Rapide)</option>}
             <option value="wasm">CPU (WebAssembly)</option>
