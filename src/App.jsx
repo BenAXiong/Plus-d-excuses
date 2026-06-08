@@ -24,6 +24,7 @@ export default function App() {
   const activeRef = useRef(null);
   const totalChunksRef = useRef(0);
   const transcribingIntervalRef = useRef(null);
+  const audioDurationRef = useRef(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [audioUrl, setAudioUrl] = useState(null);
 
@@ -383,14 +384,28 @@ export default function App() {
         // Start a smooth fake progress interval for Phase 3 so it never gets stuck at 60%
         if (!transcribingIntervalRef.current) {
           setTotalProgress(60);
+          
+          // Estimate total transcription time in seconds based on device and file duration
+          const audioDur = audioDurationRef.current || 60;
+          const estTime = device === 'webgpu' 
+            ? Math.max(5, audioDur * 0.08)  // WebGPU: ~8% of audio duration (e.g. 15s for a 3min file)
+            : Math.max(20, audioDur * 0.7); // WASM (CPU): ~70% of audio duration (e.g. 126s for a 3min file)
+          
+          const tickMs = 500;
+          const totalTicks = (estTime * 1000) / tickMs;
+          const baseIncrement = 35 / totalTicks; // We need to cover 35% (from 60% to 95%)
+
           transcribingIntervalRef.current = setInterval(() => {
             setTotalProgress((p) => {
-              if (p < 80) return p + 1;
-              if (p < 92) return p + 0.5;
-              if (p < 97) return p + 0.2;
+              if (p < 95) {
+                // Decay the speed slightly as it approaches 95% to prevent overshooting early
+                const decay = p < 80 ? 1.0 : p < 90 ? 0.6 : 0.35;
+                const nextVal = p + (baseIncrement * decay);
+                return Math.min(95, nextVal);
+              }
               return p;
             });
-          }, 350);
+          }, tickMs);
         }
       } else if (wsStatus === 'download-progress') {
         setStatus('loading-model');
@@ -496,6 +511,7 @@ export default function App() {
     try {
       const audioBuffer = await decodeAudio(file);
       const audioDuration = audioBuffer.duration;
+      audioDurationRef.current = audioDuration;
       
       // Whisper processes in 30s chunks. Stride shifts forward by 25s.
       const estimatedChunks = Math.max(1, Math.ceil(audioDuration / 25));
@@ -662,13 +678,13 @@ export default function App() {
                     ? '2. Téléchargement du Modèle...' 
                     : '3. Transcription par l\'IA...'}
                 </span>
-                <span>{totalProgress}%</span>
+                <span>{Math.round(totalProgress)}%</span>
               </div>
               
               <div className="progress-track">
                 <div 
                   className="progress-bar" 
-                  style={{ width: `${totalProgress}%` }}
+                  style={{ width: `${Math.round(totalProgress)}%` }}
                 ></div>
               </div>
 
