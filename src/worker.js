@@ -24,7 +24,7 @@ self.addEventListener('message', async (event) => {
           modelId = 'onnx-community/whisper-medium-ONNX';
         }
 
-        pipe = await pipeline('automatic-speech-recognition', modelId, {
+        const pipelineOptions = {
           device: device, // 'webgpu' or 'wasm'
           progress_callback: (progress) => {
             if (progress.status === 'progress') {
@@ -37,7 +37,16 @@ self.addEventListener('message', async (event) => {
               });
             }
           }
-        });
+        };
+
+        // Use quantization to avoid WASM OOM (2GB limit) and use fp16 for WebGPU speed
+        if (device === 'webgpu') {
+          pipelineOptions.dtype = 'fp16';
+        } else if (device === 'wasm') {
+          pipelineOptions.dtype = 'q8';
+        }
+
+        pipe = await pipeline('automatic-speech-recognition', modelId, pipelineOptions);
       }
 
       self.postMessage({ status: 'transcribing', message: 'Transcription en cours...' });
