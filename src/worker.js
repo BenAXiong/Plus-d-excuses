@@ -49,6 +49,7 @@ self.addEventListener('message', async (event) => {
         pipe = await pipeline('automatic-speech-recognition', modelId, pipelineOptions);
       }
 
+      console.log("Worker: Starting transcription. audioData length:", audioData?.length, "model:", modelName, "device:", device);
       self.postMessage({ status: 'transcribing', message: 'Transcription en cours...' });
 
       // Run transcription
@@ -62,6 +63,7 @@ self.addEventListener('message', async (event) => {
         return_timestamps: true,
         chunk_callback: (chunk) => {
           chunksProcessed++;
+          console.log(`Worker: Chunk processed (${chunksProcessed})`, chunk?.text?.substring(0, 30));
           self.postMessage({
             status: 'transcribing-progress',
             chunksProcessed
@@ -69,6 +71,7 @@ self.addEventListener('message', async (event) => {
         }
       });
       const endTime = performance.now();
+      console.log("Worker: Transcription completed in", (endTime - startTime) / 1000, "s. Output:", output);
 
       self.postMessage({
         status: 'completed',
