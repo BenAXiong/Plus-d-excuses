@@ -155,7 +155,6 @@ export default function App() {
           <label>Modèle Whisper</label>
           <select value={model} onChange={(e) => setModel(e.target.value)} disabled={status !== 'idle' && status !== 'completed' && status !== 'error'}>
             <option value="tiny">Tiny (Plus rapide, moins précis)</option>
-            <option value="base">Base</option>
             <option value="small">Small (Recommandé)</option>
             <option value="medium">Medium (Lourd, précis)</option>
             <option value="large-v3-turbo">Large V3 Turbo (Très lourd, haute précision)</option>
