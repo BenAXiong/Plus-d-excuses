@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 export default function App() {
+  const [showInstructions, setShowInstructions] = useState(false);
   const [activeTab, setActiveTab] = useState('transcription');
   const [model, setModel] = useState('small');
   const [device, setDevice] = useState('wasm');
@@ -625,11 +626,56 @@ export default function App() {
         <>
           <div className="controls-grid" style={{ gridTemplateColumns: '1fr' }}>
             <div className="control-group">
-              <label>Choisis un modèle</label>
-              <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px', marginBottom: '16px', lineHeight: '1.4' }}>
-                Plus le modèle est gros, plus il est précis, mais plus il est lent. Si ton appareil est puissant, tu peux essayer Medium, sinon commence par Small.
-              </p>
-              <div className="segmented-control">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <label style={{ fontSize: '1.05rem', fontWeight: '600' }}>Choisis un modèle</label>
+                <button
+                  type="button"
+                  onClick={() => setShowInstructions(!showInstructions)}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: showInstructions ? 'var(--accent)' : 'var(--text-secondary)',
+                    cursor: 'pointer',
+                    fontSize: '1.2rem',
+                    padding: '0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'color 0.2s ease',
+                    outline: 'none'
+                  }}
+                  title="Plus d'informations"
+                >
+                  ℹ️
+                </button>
+              </div>
+
+              {showInstructions && (
+                <div style={{
+                  fontSize: '0.85rem',
+                  color: 'var(--text-secondary)',
+                  marginTop: '8px',
+                  marginBottom: '16px',
+                  lineHeight: '1.5',
+                  background: 'rgba(255, 255, 255, 0.02)',
+                  border: '1px solid rgba(255, 255, 255, 0.05)',
+                  padding: '12px 16px',
+                  borderRadius: '8px',
+                  animation: 'fadeIn 0.3s ease'
+                }}>
+                  <p style={{ margin: '0 0 8px 0' }}>
+                    Ce site utilise Whisper AI pour transcrire l'audio que tu upload. C'est gratuit car ton appareil va lui-même télécharger et se servir du modèle pour la transcription.
+                  </p>
+                  <p style={{ margin: '0 0 8px 0' }}>
+                    Plus le modèle est gros, plus il est précis, mais plus il est lent.
+                  </p>
+                  <p style={{ margin: '0', fontWeight: '500' }}>
+                    <span style={{ color: 'var(--accent)' }}>Recommandation:</span> commence avec <strong>Small</strong>. Si ton appareil est puissant, tu peux essayer <strong>Medium</strong> ou <strong>Large</strong>.
+                  </p>
+                </div>
+              )}
+
+              <div className="segmented-control" style={{ marginTop: showInstructions ? '0px' : '16px' }}>
                 {[
                   { id: 'tiny', label: 'Tiny' },
                   { id: 'small', label: 'Small' },
@@ -708,7 +754,7 @@ export default function App() {
                 {(status !== 'processing-audio' || (status === 'error' && totalProgress >= 2)) && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.95rem', animation: 'fadeIn 0.3s ease' }}>
                     <span style={{ color: 'var(--text-primary)', fontWeight: status === 'loading-model' ? '600' : '400' }}>
-                      2. Chargement du modèle Whisper
+                      2. Chargement du modèle
                     </span>
                     {status === 'loading-model' ? (
                       <div className="spinner-icon" style={{
