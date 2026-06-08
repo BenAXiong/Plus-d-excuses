@@ -10,7 +10,7 @@ self.addEventListener('message', async (event) => {
 
   if (type === 'transcribe') {
     try {
-      self.postMessage({ status: 'status', message: 'Loading model...' });
+      self.postMessage({ status: 'loading-model', message: 'Chargement du modèle...' });
 
       // Load model if it's different or not loaded
       if (!pipe || currentModel !== modelName || currentDevice !== device) {
@@ -37,7 +37,7 @@ self.addEventListener('message', async (event) => {
         });
       }
 
-      self.postMessage({ status: 'status', message: 'Transcribing audio...' });
+      self.postMessage({ status: 'transcribing', message: 'Transcription en cours...' });
 
       // Run transcription
       const startTime = performance.now();

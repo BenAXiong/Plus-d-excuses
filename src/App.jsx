@@ -36,7 +36,11 @@ export default function App() {
     workerRef.current.addEventListener('message', (event) => {
       const { status: wsStatus, message, file: filename, progress, loaded, total, transcript: output, duration, error } = event.data;
 
-      if (wsStatus === 'status') {
+      if (wsStatus === 'loading-model') {
+        setStatus('loading-model');
+        setStatusMessage(message);
+      } else if (wsStatus === 'transcribing') {
+        setStatus('transcribing');
         setStatusMessage(message);
       } else if (wsStatus === 'download-progress') {
         setStatus('loading-model');
@@ -149,7 +153,7 @@ export default function App() {
         <h1 style={{ marginBottom: '24px' }}>Plus d'excuses</h1>
       </header>
 
-      <div className="controls-grid">
+      <div className="controls-grid" style={{ gridTemplateColumns: '1fr' }}>
         <div className="control-group">
           <label>Choisis un modèle</label>
           <select value={model} onChange={(e) => setModel(e.target.value)} disabled={status !== 'idle' && status !== 'completed' && status !== 'error'}>
@@ -157,14 +161,6 @@ export default function App() {
             <option value="small">Small (Recommandé)</option>
             <option value="medium">Medium (Lourd, précis)</option>
             <option value="large-v3-turbo">Large V3 Turbo (Très lourd, haute précision)</option>
-          </select>
-        </div>
-
-        <div className="control-group">
-          <label>Choisis le processeur</label>
-          <select value={device} onChange={(e) => setDevice(e.target.value)} disabled={status !== 'idle' && status !== 'completed' && status !== 'error'}>
-            {hasWebGPU && <option value="webgpu">GPU (WebGPU — Ultra Rapide)</option>}
-            <option value="wasm">CPU (WebAssembly)</option>
           </select>
         </div>
       </div>

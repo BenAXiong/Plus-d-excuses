@@ -253,7 +253,7 @@ select:focus {
   border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 20px;
-  max-height: 300px;
+  max-height: 150px;
   overflow-y: auto;
   font-family: inherit;
   font-size: 0.9rem;
