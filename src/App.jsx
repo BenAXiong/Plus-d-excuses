@@ -18,6 +18,20 @@ export default function App() {
   const [timeTaken, setTimeTaken] = useState(0);
   
   const workerRef = useRef(null);
+  const audioRef = useRef(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [audioUrl, setAudioUrl] = useState(null);
+
+  // Set audio URL when file changes
+  useEffect(() => {
+    if (file) {
+      const url = URL.createObjectURL(file);
+      setAudioUrl(url);
+      return () => URL.revokeObjectURL(url);
+    } else {
+      setAudioUrl(null);
+    }
+  }, [file]);
 
   // Detect WebGPU
   useEffect(() => {
@@ -272,9 +286,79 @@ export default function App() {
       )}
 
       {activeTab === 'player' && (
-        <div className="placeholder-view">
-          <h2>Lecteur Audio</h2>
-          <p>Chargez un fichier audio pour l'écouter avec sa transcription en temps réel.</p>
+        <div className="player-view" style={{ animation: 'fadeIn 0.5s ease-out' }}>
+          {!file ? (
+            <div className="placeholder-view">
+              <h2>Aucun fichier chargé</h2>
+              <p>Sélectionnez un fichier audio dans l'onglet <strong>Transcription</strong> pour commencer.</p>
+              <button className="btn" style={{ width: 'auto', marginTop: '16px' }} onClick={() => setActiveTab('transcription')}>
+                Aller à la Transcription
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border-color)', borderRadius: '12px', padding: '24px', textAlign: 'center' }}>
+                <h3 style={{ fontFamily: 'Outfit', marginBottom: '8px' }}>{file.name}</h3>
+                <audio 
+                  ref={audioRef}
+                  src={audioUrl} 
+                  controls 
+                  style={{ width: '100%', marginTop: '16px' }}
+                  onTimeUpdate={(e) => setCurrentTime(e.target.currentTime)}
+                />
+              </div>
+
+              {transcript ? (
+                <div>
+                  <h3 style={{ fontFamily: 'Outfit', marginBottom: '16px' }}>Transcription Synchrone</h3>
+                  <div className="transcript-box" style={{ maxHeight: '350px' }}>
+                    {transcript.chunks.map((chunk, index) => {
+                      const start = chunk.timestamp[0];
+                      const end = chunk.timestamp[1] || start + 2;
+                      const isActive = currentTime >= start && currentTime <= end;
+                      
+                      return (
+                        <div 
+                          key={index} 
+                          className={`transcript-segment ${isActive ? 'active' : ''}`}
+                          style={{ 
+                            cursor: 'pointer', 
+                            padding: '8px', 
+                            borderRadius: '6px', 
+                            background: isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                            borderLeft: isActive ? '3px solid var(--accent)' : '3px solid transparent',
+                            transition: 'all 0.2s ease',
+                            display: 'flex',
+                            gap: '12px'
+                          }}
+                          onClick={() => {
+                            if (audioRef.current) {
+                              audioRef.current.currentTime = start;
+                              audioRef.current.play();
+                            }
+                          }}
+                        >
+                          <span className="segment-time" style={{ color: isActive ? 'var(--text-primary)' : 'var(--accent)', minWidth: '60px' }}>
+                            [{formatSRTTime(start).substring(3, 8)}]
+                          </span>
+                          <span className="segment-text" style={{ fontWeight: isActive ? '600' : '400', flex: 1, textAlign: 'left' }}>
+                            {chunk.text}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="placeholder-view" style={{ padding: '20px' }}>
+                  <p>Aucune transcription générée pour ce fichier.</p>
+                  <button className="btn" style={{ width: 'auto', marginTop: '12px' }} onClick={() => setActiveTab('transcription')}>
+                    Générer la transcription
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
