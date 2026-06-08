@@ -1,0 +1,10 @@
+node_modules
+dist
+.vercel
+*.mp3
+*.wav
+*.m4a
+*.srt
+*.vtt
+.DS_Store
+.env
