@@ -19,8 +19,19 @@ export default function App() {
   
   const workerRef = useRef(null);
   const audioRef = useRef(null);
+  const activeRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [audioUrl, setAudioUrl] = useState(null);
+
+  // Auto-scroll transcript when active segment changes
+  useEffect(() => {
+    if (activeRef.current) {
+      activeRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'nearest'
+      });
+    }
+  }, [currentTime]);
 
   // Set audio URL when file changes
   useEffect(() => {
@@ -374,6 +385,7 @@ export default function App() {
                       return (
                         <div 
                           key={index} 
+                          ref={isActive ? activeRef : null}
                           className={`transcript-segment ${isActive ? 'active' : ''}`}
                           style={{ 
                             cursor: 'pointer', 
