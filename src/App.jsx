@@ -465,16 +465,16 @@ export default function App() {
 
   return (
     <div className="app-container">
-      <header>
-        <h1 style={{ marginBottom: '24px' }}>Plus d'excuses</h1>
-      </header>
-
-      {/* Desktop Navigation */}
-      <nav className="nav-desktop">
-        <button className={activeTab === 'transcription' ? 'active' : ''} onClick={() => setActiveTab('transcription')}>Transcription</button>
-        <button className={activeTab === 'player' ? 'active' : ''} onClick={() => setActiveTab('player')}>Player</button>
-        <button className={activeTab === 'librairie' ? 'active' : ''} onClick={() => setActiveTab('librairie')}>Librairie</button>
-      </nav>
+      <div className="header-container">
+        <h1>Plus d'excuses</h1>
+        
+        {/* Desktop Navigation */}
+        <nav className="nav-desktop">
+          <button className={activeTab === 'transcription' ? 'active' : ''} onClick={() => setActiveTab('transcription')}>Transcription</button>
+          <button className={activeTab === 'player' ? 'active' : ''} onClick={() => setActiveTab('player')}>Player</button>
+          <button className={activeTab === 'librairie' ? 'active' : ''} onClick={() => setActiveTab('librairie')}>Librairie</button>
+        </nav>
+      </div>
 
       {/* Main Views */}
       {activeTab === 'transcription' && (
