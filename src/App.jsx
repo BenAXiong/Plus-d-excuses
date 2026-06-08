@@ -162,6 +162,37 @@ export default function App() {
     document.body.removeChild(link);
   };
 
+  const handleSRTUpload = (e) => {
+    const srtFile = e.target.files[0];
+    if (!srtFile) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const text = event.target.result;
+      const chunks = [];
+      const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+      const blocks = normalized.trim().split('\n\n');
+      
+      for (const block of blocks) {
+        const lines = block.split('\n');
+        if (lines.length >= 3) {
+          const timeLine = lines[1];
+          const match = timeLine.match(/(\d{2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{2}):(\d{2}):(\d{2})[,.](\d{3})/);
+          if (match) {
+            const start = parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseInt(match[3]) + parseInt(match[4]) / 1000;
+            const end = parseInt(match[5]) * 3600 + parseInt(match[6]) * 60 + parseInt(match[7]) + parseInt(match[8]) / 1000;
+            const textContent = lines.slice(2).join(' ').trim();
+            chunks.push({
+              timestamp: [start, end],
+              text: textContent
+            });
+          }
+        }
+      }
+      setTranscript({ chunks });
+    };
+    reader.readAsText(srtFile);
+  };
+
   return (
     <div className="app-container">
       <header>
@@ -289,11 +320,22 @@ export default function App() {
         <div className="player-view" style={{ animation: 'fadeIn 0.5s ease-out' }}>
           {!file ? (
             <div className="placeholder-view">
-              <h2>Aucun fichier chargé</h2>
-              <p>Sélectionnez un fichier audio dans l'onglet <strong>Transcription</strong> pour commencer.</p>
-              <button className="btn" style={{ width: 'auto', marginTop: '16px' }} onClick={() => setActiveTab('transcription')}>
-                Aller à la Transcription
-              </button>
+              <h2>Aucun fichier audio chargé</h2>
+              <p>Sélectionnez un fichier audio pour commencer l'écoute.</p>
+              
+              <div className="dropzone" style={{ width: '100%', maxWidth: '400px', margin: '20px auto 0' }}>
+                <input 
+                  type="file" 
+                  accept="audio/*" 
+                  id="player-audio-picker" 
+                  style={{ display: 'none' }} 
+                  onChange={handleFileChange}
+                />
+                <label htmlFor="player-audio-picker" style={{ width: '100%', cursor: 'pointer' }}>
+                  <div className="dropzone-icon">🎵</div>
+                  <p style={{ color: 'var(--text-primary)', fontWeight: '500' }}>Charger un fichier audio</p>
+                </label>
+              </div>
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -306,6 +348,18 @@ export default function App() {
                   style={{ width: '100%', marginTop: '16px' }}
                   onTimeUpdate={(e) => setCurrentTime(e.target.currentTime)}
                 />
+                
+                {/* Reset button to clear loaded audio */}
+                <button 
+                  className="btn" 
+                  style={{ width: 'auto', background: 'transparent', border: '1px solid var(--border-color)', boxShadow: 'none', padding: '6px 12px', fontSize: '0.8rem', marginTop: '12px' }}
+                  onClick={() => {
+                    setFile(null);
+                    setTranscript(null);
+                  }}
+                >
+                  Changer de fichier audio
+                </button>
               </div>
 
               {transcript ? (
@@ -350,11 +404,26 @@ export default function App() {
                   </div>
                 </div>
               ) : (
-                <div className="placeholder-view" style={{ padding: '20px' }}>
-                  <p>Aucune transcription générée pour ce fichier.</p>
-                  <button className="btn" style={{ width: 'auto', marginTop: '12px' }} onClick={() => setActiveTab('transcription')}>
-                    Générer la transcription
-                  </button>
+                <div className="placeholder-view" style={{ padding: '20px', border: '1px solid var(--border-color)', borderRadius: '12px' }}>
+                  <h2>Aucun sous-titre associé</h2>
+                  <p style={{ marginBottom: '16px' }}>Générez une transcription dans le premier onglet, ou chargez directement un fichier de sous-titres `.srt` existant pour ce fichier.</p>
+                  
+                  <div style={{ display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                    <button className="btn" style={{ width: 'auto' }} onClick={() => setActiveTab('transcription')}>
+                      Transcrire avec Whisper
+                    </button>
+                    
+                    <input 
+                      type="file" 
+                      accept=".srt" 
+                      id="srt-picker" 
+                      style={{ display: 'none' }} 
+                      onChange={handleSRTUpload}
+                    />
+                    <label htmlFor="srt-picker" className="btn" style={{ width: 'auto', display: 'inline-block', lineHeight: 'normal', cursor: 'pointer' }}>
+                      Importer un fichier .SRT
+                    </label>
+                  </div>
                 </div>
               )}
             </div>
