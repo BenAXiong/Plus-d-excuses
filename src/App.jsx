@@ -25,6 +25,7 @@ export default function App() {
   const totalChunksRef = useRef(0);
   const transcribingIntervalRef = useRef(null);
   const audioDurationRef = useRef(0);
+  const p1TargetRef = useRef(5);
   const [currentTime, setCurrentTime] = useState(0);
   const [audioUrl, setAudioUrl] = useState(null);
 
@@ -381,9 +382,9 @@ export default function App() {
         setStatus('transcribing');
         setStatusMessage(message);
         
-        // Start a smooth fake progress interval for Phase 3 so it never gets stuck at 60%
+        // Start a smooth fake progress interval for Phase 3 so it never gets stuck at 10%
         if (!transcribingIntervalRef.current) {
-          setTotalProgress(60);
+          setTotalProgress(10);
           
           // Estimate total transcription time in seconds based on device and file duration
           const audioDur = audioDurationRef.current || 60;
@@ -393,13 +394,13 @@ export default function App() {
           
           const tickMs = 500;
           const totalTicks = (estTime * 1000) / tickMs;
-          const baseIncrement = 35 / totalTicks; // We need to cover 35% (from 60% to 95%)
+          const baseIncrement = 85 / totalTicks; // We need to cover 85% (from 10% to 95%)
 
           transcribingIntervalRef.current = setInterval(() => {
             setTotalProgress((p) => {
               if (p < 95) {
                 // Decay the speed slightly as it approaches 95% to prevent overshooting early
-                const decay = p < 80 ? 1.0 : p < 90 ? 0.6 : 0.35;
+                const decay = p < 40 ? 1.0 : p < 75 ? 0.6 : 0.35;
                 const nextVal = p + (baseIncrement * decay);
                 return Math.min(95, nextVal);
               }
@@ -416,8 +417,10 @@ export default function App() {
           const sum = values.reduce((a, b) => a + b, 0);
           const downloadAverage = sum / values.length;
           
-          // Phase 2: Map 0% - 100% download progress to 10% - 60% overall progress
-          setTotalProgress(10 + Math.round(downloadAverage * 0.5));
+          // Phase 2: Map 0% - 100% download progress to p1Target - 10% overall progress
+          const startBound = p1TargetRef.current;
+          const span = 10 - startBound;
+          setTotalProgress(startBound + Math.round(downloadAverage * span / 100));
           return next;
         });
       } else if (wsStatus === 'transcribing-progress') {
@@ -426,7 +429,7 @@ export default function App() {
         
         // Phase 3: Update progress based on real chunk callback if higher than current progress
         if (totalChunksRef.current > 0) {
-          const transProgress = 60 + Math.round((chunksProcessed / totalChunksRef.current) * 40);
+          const transProgress = 10 + Math.round((chunksProcessed / totalChunksRef.current) * 85);
           setTotalProgress((current) => Math.max(current, Math.min(97, transProgress)));
         }
       } else if (wsStatus === 'completed') {
@@ -482,10 +485,14 @@ export default function App() {
     setStatus('processing-audio');
     setStatusMessage('Décodage de l\'audio...');
     
-    // Simulate decoding progress up to 10%
+    // Calculate Phase 1 target dynamically (e.g., ~5% for 3min file, using file size as proxy)
+    const p1Target = Math.max(2, Math.min(6, Math.round((file.size / (1024 * 1024)) * 1.3)));
+    p1TargetRef.current = p1Target;
+    
+    // Simulate decoding progress up to p1Target
     setTotalProgress(1);
     const interval = setInterval(() => {
-      setTotalProgress(p => p < 10 ? p + 1 : p);
+      setTotalProgress(p => p < p1Target ? p + 1 : p);
     }, 150);
     
     const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
@@ -494,7 +501,7 @@ export default function App() {
     try {
       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
       clearInterval(interval);
-      setTotalProgress(10);
+      setTotalProgress(p1Target);
       return audioBuffer;
     } catch (err) {
       clearInterval(interval);
