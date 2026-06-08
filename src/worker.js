@@ -53,12 +53,20 @@ self.addEventListener('message', async (event) => {
 
       // Run transcription
       const startTime = performance.now();
+      let chunksProcessed = 0;
       const output = await pipe(audioData, {
         chunk_length_s: 30,
         stride_length_s: 5,
         language: 'french',
         task: 'transcribe',
         return_timestamps: true,
+        chunk_callback: (chunk) => {
+          chunksProcessed++;
+          self.postMessage({
+            status: 'transcribing-progress',
+            chunksProcessed
+          });
+        }
       });
       const endTime = performance.now();
 

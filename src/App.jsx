@@ -14,6 +14,7 @@ export default function App() {
   // Model loading downloads
   const [downloads, setDownloads] = useState({});
   const [totalProgress, setTotalProgress] = useState(0);
+  const [totalChunks, setTotalChunks] = useState(0);
   
   const [transcript, setTranscript] = useState(null);
   const [timeTaken, setTimeTaken] = useState(0);
@@ -21,6 +22,7 @@ export default function App() {
   const workerRef = useRef(null);
   const audioRef = useRef(null);
   const activeRef = useRef(null);
+  const totalChunksRef = useRef(0);
   const [currentTime, setCurrentTime] = useState(0);
   const [audioUrl, setAudioUrl] = useState(null);
 
@@ -360,7 +362,7 @@ export default function App() {
     );
 
     workerRef.current.addEventListener('message', (event) => {
-      const { status: wsStatus, message, file: filename, progress, loaded, total, transcript: output, duration, error } = event.data;
+      const { status: wsStatus, message, file: filename, progress, loaded, total, transcript: output, duration, error, chunksProcessed } = event.data;
 
       if (wsStatus === 'loading-model') {
         setStatus('loading-model');
@@ -368,6 +370,7 @@ export default function App() {
       } else if (wsStatus === 'transcribing') {
         setStatus('transcribing');
         setStatusMessage(message);
+        setTotalProgress(60); // Jump directly to Phase 3 start when cached model is used
       } else if (wsStatus === 'download-progress') {
         setStatus('loading-model');
         setDownloads((prev) => {
@@ -375,11 +378,24 @@ export default function App() {
           // Calculate average progress
           const values = Object.values(next);
           const sum = values.reduce((a, b) => a + b, 0);
-          setTotalProgress(Math.round(sum / values.length));
+          const downloadAverage = sum / values.length;
+          
+          // Phase 2: Map 0% - 100% download progress to 10% - 60% overall progress
+          setTotalProgress(10 + Math.round(downloadAverage * 0.5));
           return next;
         });
+      } else if (wsStatus === 'transcribing-progress') {
+        setStatus('transcribing');
+        setStatusMessage(`Transcription en cours... (segment ${chunksProcessed} / ${totalChunksRef.current || '?'})`);
+        
+        // Phase 3: Map chunks processed to 60% - 100% overall progress
+        if (totalChunksRef.current > 0) {
+          const transProgress = 60 + Math.round((chunksProcessed / totalChunksRef.current) * 40);
+          setTotalProgress(Math.min(100, transProgress));
+        }
       } else if (wsStatus === 'completed') {
         setStatus('completed');
+        setTotalProgress(100);
         setTranscript(output);
         setTimeTaken(duration);
       } else if (wsStatus === 'error') {
@@ -428,14 +444,22 @@ export default function App() {
     setStatus('processing-audio');
     setStatusMessage('Décodage de l\'audio...');
     
+    // Simulate decoding progress up to 10%
+    setTotalProgress(1);
+    const interval = setInterval(() => {
+      setTotalProgress(p => p < 10 ? p + 1 : p);
+    }, 150);
+    
     const audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
     const arrayBuffer = await file.arrayBuffer();
     
     try {
       const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-      // Get mono channel data
-      return audioBuffer.getChannelData(0);
+      clearInterval(interval);
+      setTotalProgress(10);
+      return audioBuffer;
     } catch (err) {
+      clearInterval(interval);
       throw new Error("Impossible de décoder l'audio. Vérifiez que c'est un fichier MP3/WAV valide.");
     }
   };
@@ -447,10 +471,18 @@ export default function App() {
     setTotalProgress(0);
 
     try {
-      const audioData = await decodeAudio(file);
+      const audioBuffer = await decodeAudio(file);
+      const audioDuration = audioBuffer.duration;
+      
+      // Whisper processes in 30s chunks. Stride shifts forward by 25s.
+      const estimatedChunks = Math.max(1, Math.ceil(audioDuration / 25));
+      setTotalChunks(estimatedChunks);
+      totalChunksRef.current = estimatedChunks;
+
       setStatus('loading-model');
       setStatusMessage('Initialisation du modèle Whisper...');
       
+      const audioData = audioBuffer.getChannelData(0);
       workerRef.current.postMessage({
         type: 'transcribe',
         audioData,
@@ -600,17 +632,73 @@ export default function App() {
           {status !== 'idle' && status !== 'completed' && (
             <div className="progress-card">
               <div className="status-text">
-                <span>{status === 'processing-audio' ? 'Traitement audio...' : status === 'loading-model' ? 'Chargement du modèle...' : 'Transcription en cours...'}</span>
-                {status === 'loading-model' && <span>{totalProgress}%</span>}
+                <span>
+                  {status === 'processing-audio' 
+                    ? '1. Décodage Audio...' 
+                    : totalProgress < 60 
+                    ? '2. Téléchargement du Modèle...' 
+                    : '3. Transcription par l\'IA...'}
+                </span>
+                <span>{totalProgress}%</span>
               </div>
+              
               <div className="progress-track">
                 <div 
                   className="progress-bar" 
-                  style={{ width: `${status === 'loading-model' ? totalProgress : status === 'transcribing' ? 100 : 0}%` }}
+                  style={{ width: `${totalProgress}%` }}
                 ></div>
               </div>
-              <div className="progress-details">
+
+              <div className="progress-details" style={{ marginBottom: '16px' }}>
                 <span>{statusMessage}</span>
+              </div>
+
+              {/* 3-Step Progress Dots */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '16px', gap: '8px' }}>
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                  <div style={{ 
+                    width: '14px', 
+                    height: '14px', 
+                    borderRadius: '50%', 
+                    background: totalProgress >= 10 ? 'var(--success)' : 'var(--accent)', 
+                    boxShadow: totalProgress < 10 ? '0 0 8px var(--accent)' : 'none',
+                    transition: 'all 0.3s ease',
+                    marginBottom: '6px'
+                  }}></div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: totalProgress < 10 ? '600' : '400', color: totalProgress < 10 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                    Audio
+                  </span>
+                </div>
+                
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                  <div style={{ 
+                    width: '14px', 
+                    height: '14px', 
+                    borderRadius: '50%', 
+                    background: totalProgress >= 60 ? 'var(--success)' : totalProgress >= 10 ? 'var(--accent)' : 'rgba(255,255,255,0.1)', 
+                    boxShadow: (totalProgress >= 10 && totalProgress < 60) ? '0 0 8px var(--accent)' : 'none',
+                    transition: 'all 0.3s ease',
+                    marginBottom: '6px'
+                  }}></div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: (totalProgress >= 10 && totalProgress < 60) ? '600' : '400', color: (totalProgress >= 10 && totalProgress < 60) ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                    Modèle Whisper
+                  </span>
+                </div>
+                
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+                  <div style={{ 
+                    width: '14px', 
+                    height: '14px', 
+                    borderRadius: '50%', 
+                    background: totalProgress >= 100 ? 'var(--success)' : totalProgress >= 60 ? 'var(--accent)' : 'rgba(255,255,255,0.1)', 
+                    boxShadow: (totalProgress >= 60 && totalProgress < 100) ? '0 0 8px var(--accent)' : 'none',
+                    transition: 'all 0.3s ease',
+                    marginBottom: '6px'
+                  }}></div>
+                  <span style={{ fontSize: '0.75rem', fontWeight: (totalProgress >= 60 && totalProgress < 100) ? '600' : '400', color: (totalProgress >= 60 && totalProgress < 100) ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                    Transcription IA
+                  </span>
+                </div>
               </div>
             </div>
           )}
