@@ -23,6 +23,7 @@ export default function App() {
   const audioRef = useRef(null);
   const activeRef = useRef(null);
   const totalChunksRef = useRef(0);
+  const transcribingIntervalRef = useRef(null);
   const [currentTime, setCurrentTime] = useState(0);
   const [audioUrl, setAudioUrl] = useState(null);
 
@@ -364,13 +365,33 @@ export default function App() {
     workerRef.current.addEventListener('message', (event) => {
       const { status: wsStatus, message, file: filename, progress, loaded, total, transcript: output, duration, error, chunksProcessed } = event.data;
 
+      // Helper to stop fake progress interval
+      const clearTranscribingInterval = () => {
+        if (transcribingIntervalRef.current) {
+          clearInterval(transcribingIntervalRef.current);
+          transcribingIntervalRef.current = null;
+        }
+      };
+
       if (wsStatus === 'loading-model') {
         setStatus('loading-model');
         setStatusMessage(message);
       } else if (wsStatus === 'transcribing') {
         setStatus('transcribing');
         setStatusMessage(message);
-        setTotalProgress(60); // Jump directly to Phase 3 start when cached model is used
+        
+        // Start a smooth fake progress interval for Phase 3 so it never gets stuck at 60%
+        if (!transcribingIntervalRef.current) {
+          setTotalProgress(60);
+          transcribingIntervalRef.current = setInterval(() => {
+            setTotalProgress((p) => {
+              if (p < 80) return p + 1;
+              if (p < 92) return p + 0.5;
+              if (p < 97) return p + 0.2;
+              return p;
+            });
+          }, 350);
+        }
       } else if (wsStatus === 'download-progress') {
         setStatus('loading-model');
         setDownloads((prev) => {
@@ -388,17 +409,19 @@ export default function App() {
         setStatus('transcribing');
         setStatusMessage(`Transcription en cours... (segment ${chunksProcessed} / ${totalChunksRef.current || '?'})`);
         
-        // Phase 3: Map chunks processed to 60% - 100% overall progress
+        // Phase 3: Update progress based on real chunk callback if higher than current progress
         if (totalChunksRef.current > 0) {
           const transProgress = 60 + Math.round((chunksProcessed / totalChunksRef.current) * 40);
-          setTotalProgress(Math.min(100, transProgress));
+          setTotalProgress((current) => Math.max(current, Math.min(97, transProgress)));
         }
       } else if (wsStatus === 'completed') {
+        clearTranscribingInterval();
         setStatus('completed');
         setTotalProgress(100);
         setTranscript(output);
         setTimeTaken(duration);
       } else if (wsStatus === 'error') {
+        clearTranscribingInterval();
         setStatus('error');
         setStatusMessage(error);
       }
