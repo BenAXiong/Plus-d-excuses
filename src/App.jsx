@@ -676,76 +676,75 @@ export default function App() {
           </div>
 
           {status !== 'idle' && status !== 'completed' && (
-            <div className="progress-card">
-              <div className="status-text">
-                <span>
-                  {status === 'processing-audio' 
-                    ? '1. Décodage Audio...' 
-                    : totalProgress < 60 
-                    ? '2. Téléchargement du Modèle...' 
-                    : '3. Transcription par l\'IA...'}
-                </span>
-                <span>{Math.round(totalProgress)}%</span>
-              </div>
-              
-              <div className="progress-track">
-                <div 
-                  className="progress-bar" 
-                  style={{ width: `${Math.round(totalProgress)}%` }}
-                ></div>
+            <div className="progress-card" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* Row 1: Décodage audio */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.95rem' }}>
+                  <span style={{ color: 'var(--text-primary)', fontWeight: status === 'processing-audio' ? '600' : '400' }}>
+                    1. Décodage de l'audio
+                  </span>
+                  {status === 'processing-audio' ? (
+                    <div className="spinner-icon" style={{
+                      width: '16px',
+                      height: '16px',
+                      border: '2px solid rgba(255, 255, 255, 0.1)',
+                      borderTop: '2px solid var(--accent)',
+                      borderRadius: '50%',
+                      animation: 'spin 1s linear infinite'
+                    }}></div>
+                  ) : (
+                    <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>✓</span>
+                  )}
+                </div>
+
+                {/* Row 2: Téléchargement/Chargement du modèle (visible after phase 1 is done) */}
+                {status !== 'processing-audio' && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.95rem', animation: 'fadeIn 0.3s ease' }}>
+                    <span style={{ color: 'var(--text-primary)', fontWeight: status === 'loading-model' ? '600' : '400' }}>
+                      2. Chargement du modèle Whisper
+                    </span>
+                    {status === 'loading-model' ? (
+                      <div className="spinner-icon" style={{
+                        width: '16px',
+                        height: '16px',
+                        border: '2px solid rgba(255, 255, 255, 0.1)',
+                        borderTop: '2px solid var(--accent)',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite'
+                      }}></div>
+                    ) : (
+                      <span style={{ color: 'var(--success)', fontWeight: 'bold' }}>✓</span>
+                    )}
+                  </div>
+                )}
+
+                {/* Row 3: Transcription (visible after model is loaded) */}
+                {status === 'transcribing' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', animation: 'fadeIn 0.3s ease' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.95rem' }}>
+                      <span style={{ color: 'var(--text-primary)', fontWeight: '600' }}>
+                        3. Transcription par l'IA
+                      </span>
+                      <span style={{ color: 'var(--accent)', fontWeight: '600' }}>
+                        {Math.max(0, Math.min(100, Math.round(((totalProgress - 10) / 85) * 100)))}%
+                      </span>
+                    </div>
+
+                    <div className="progress-track" style={{ margin: '4px 0 0 0' }}>
+                      <div 
+                        className="progress-bar" 
+                        style={{ width: `${Math.max(0, Math.min(100, Math.round(((totalProgress - 10) / 85) * 100)))}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              <div className="progress-details" style={{ marginBottom: '16px' }}>
-                <span>{statusMessage}</span>
-              </div>
-
-              {/* 3-Step Progress Dots */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border-color)', paddingTop: '16px', gap: '8px' }}>
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                  <div style={{ 
-                    width: '14px', 
-                    height: '14px', 
-                    borderRadius: '50%', 
-                    background: totalProgress >= 10 ? 'var(--success)' : 'var(--accent)', 
-                    boxShadow: totalProgress < 10 ? '0 0 8px var(--accent)' : 'none',
-                    transition: 'all 0.3s ease',
-                    marginBottom: '6px'
-                  }}></div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: totalProgress < 10 ? '600' : '400', color: totalProgress < 10 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                    Audio
-                  </span>
+              {statusMessage && (
+                <div className="progress-details" style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px' }}>
+                  <span>{statusMessage}</span>
                 </div>
-                
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                  <div style={{ 
-                    width: '14px', 
-                    height: '14px', 
-                    borderRadius: '50%', 
-                    background: totalProgress >= 60 ? 'var(--success)' : totalProgress >= 10 ? 'var(--accent)' : 'rgba(255,255,255,0.1)', 
-                    boxShadow: (totalProgress >= 10 && totalProgress < 60) ? '0 0 8px var(--accent)' : 'none',
-                    transition: 'all 0.3s ease',
-                    marginBottom: '6px'
-                  }}></div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: (totalProgress >= 10 && totalProgress < 60) ? '600' : '400', color: (totalProgress >= 10 && totalProgress < 60) ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                    Modèle Whisper
-                  </span>
-                </div>
-                
-                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-                  <div style={{ 
-                    width: '14px', 
-                    height: '14px', 
-                    borderRadius: '50%', 
-                    background: totalProgress >= 100 ? 'var(--success)' : totalProgress >= 60 ? 'var(--accent)' : 'rgba(255,255,255,0.1)', 
-                    boxShadow: (totalProgress >= 60 && totalProgress < 100) ? '0 0 8px var(--accent)' : 'none',
-                    transition: 'all 0.3s ease',
-                    marginBottom: '6px'
-                  }}></div>
-                  <span style={{ fontSize: '0.75rem', fontWeight: (totalProgress >= 60 && totalProgress < 100) ? '600' : '400', color: (totalProgress >= 60 && totalProgress < 100) ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                    Transcription IA
-                  </span>
-                </div>
-              </div>
+              )}
             </div>
           )}
 
